@@ -67,8 +67,7 @@
         <div class="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative">
             <h3 class="text-xl font-bold mb-4 text-white flex items-center gap-2"><i class="fa-solid fa-circle-plus text-indigo-400"></i> Adicionar Novo Gasto</h3>
             
-            <!-- Formulário apontando diretamente para o Web App com iframe oculto para evitar bloqueio de CORS -->
-            <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;" onload="if(enviado){sucessoEnvio()}"></iframe>
+            <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;" onload="sucessoEnvio()"></iframe>
             
             <form id="formGasto" action="https://script.google.com/macros/s/AKfycbzEg5sE0yBNSARVxxzxZ1zWflj_ELr9lHkb-QGRwhh2wC1OqYXSsHfdJfPReGJKCnpC/exec" method="GET" target="hidden_iframe" onsubmit="prepararEnvio(event)" class="space-y-4">
                 <div>
@@ -117,7 +116,7 @@
 
         let chartCategorias, chartEvolucao;
         let meusGastos = [];
-        let enviado = false;
+        let formEnviado = false;
 
         function abrirModal() {
             document.getElementById('modalGasto').classList.remove('hidden');
@@ -130,16 +129,20 @@
             document.getElementById('modalGasto').classList.remove('flex');
         }
 
-        async function carregarDadosDaPlanilha() {
-            try {
-                let resposta = await fetch(WEB_APP_URL);
-                let resultado = await resposta.json();
-                if (resultado.dados) {
-                    meusGastos = resultado.dados;
-                    atualizarDashboard();
-                }
-            } catch (error) {
-                console.error("Erro ao carregar dados:", error);
+        // Função JSONP para burlar o CORS do navegador perfeitamente
+        function carregarDadosDaPlanilha() {
+            const script = document.createElement('script');
+            script.src = `${WEB_APP_URL}?callback=processarDados`;
+            document.body.appendChild(script);
+            script.onerror = function() {
+                console.error("Erro ao carregar dados via JSONP.");
+            };
+        }
+
+        function processarDados(resultado) {
+            if (resultado && resultado.dados) {
+                meusGastos = resultado.dados;
+                atualizarDashboard();
             }
         }
 
@@ -206,24 +209,24 @@
         }
 
         function prepararEnvio(event) {
-            enviado = true;
+            formEnviado = true;
             const btn = document.getElementById('btnSalvar');
-            btn.innerText = "A enviar...";
+            btn.innerText = "Salvando...";
             btn.disabled = true;
         }
 
         function sucessoEnvio() {
-            if (!enviado) return;
-            alert('Gasto cadastrado com sucesso e enviado para a planilha!');
+            if (!formEnviado) return;
+            alert('Gasto cadastrado com sucesso!');
             document.getElementById('formGasto').reset();
             fecharModal();
             
             const btn = document.getElementById('btnSalvar');
             btn.innerText = "Salvar Gasto";
             btn.disabled = false;
-            enviado = false;
+            formEnviado = false;
 
-            // Atualiza os gráficos automaticamente
+            // Atualiza os dados na tela após 1.5s
             setTimeout(carregarDadosDaPlanilha, 1500);
         }
 
